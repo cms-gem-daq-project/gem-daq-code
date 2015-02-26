@@ -1,30 +1,42 @@
 #include "gem/hwMonitor/gemHwMonitorBase.h"
 
-//XDAQ_INSTANTIATOR_IMPL(gem::hwMonitor::gemHwMonitorBase)
-
-//gem::hwMonitor::gemHwMonitorBase::gemHwMonitorBase(xdaq::ApplicationStub * s)
-gem::hwMonitor::gemHwMonitorBase::gemHwMonitorBase()
-    throw (xdaq::exception::Exception)
-{
-    this->setXMLconfigFile("${BUILD_HOME}/gemdaq-testing/gembase/xml/gem_conf.xml");
-    this->setCurrentCrate("N/A");
-}
-
-void gem::hwMonitor::gemHwMonitorBase::initParser()
+template <class T> const std::string& gem::hwMonitor::gemHwMonitorBase<T>::getDeviceId ()
     throw (xgi::exception::Exception)
 {
-    gemXMLparser_ = new gem::base::utils::gemXMLparser(xmlConfigFileName_);
+    if (isConfigured_){
+        return gemDevice_->getDeviceId();
+    } else {
+        return "Device is not configured";
+    }
 }
 
-void gem::hwMonitor::gemHwMonitorBase::getSystemConfiguration()
+template <class T> void gem::hwMonitor::gemHwMonitorBase<T>::getDeviceConfiguration(T* device)
     throw (xgi::exception::Exception)
 {
-    gemXMLparser_->parseXMLFile();
-    crateRefs_ = gemXMLparser_->getCrateRefs();
+    gemDevice_ = device;
+    isConfigured_ = true;
 }
-int gem::hwMonitor::gemHwMonitorBase::getNumberOfCrates()
+
+template <class T> int gem::hwMonitor::gemHwMonitorBase<T>::getNumberOfSubDevices()
     throw (xgi::exception::Exception)
-{ 
-    return (crateRefs_.end() - crateRefs_.begin());
-    //return 0;
+{
+    if (isConfigured_ && !(this->getDeviceId().find('VFAT') == std::string::npos)){
+        return gemDevice_->getSubDevicesIds().size();
+    } else {
+        return -1;
+    }
 }
+
+template <class T> std::string gem::hwMonitor::gemHwMonitorBase<T>::getCurrentSubDeviceId(unsigned int subDeviceNumber)
+    throw (xgi::exception::Exception)
+{
+    if !(this->getDeviceId().find('VFAT') == std::string::npos) 
+    {
+        return gemDevice_->getSubDevicesRefs().at(subDeviceNumber)->getDeviceId();
+    }
+    else {
+        return "VFATs don't have subdevices";
+    }
+}
+template class gem::hwMonitor::gemHwMonitorBase<gem::base::utils::gemSystemProperties>; 
+template class gem::hwMonitor::gemHwMonitorBase<gem::base::utils::gemCrateProperties>; 
