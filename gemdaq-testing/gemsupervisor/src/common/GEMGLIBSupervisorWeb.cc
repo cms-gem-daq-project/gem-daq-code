@@ -912,6 +912,10 @@ void gem::supervisor::GEMGLIBSupervisorWeb::startAction(toolbox::Event::Referenc
   m_bc0Count[4] = optohybridDevice_->getBC0Count(4); //sent
 
   INFO("setTrigSource OH Trigger source 0");
+  glibDevice_->flushFIFO(0);
+  optohybridDevice_->sendResync();
+  optohybridDevice_->sendBC0();
+  optohybridDevice_->sendResync();
   optohybridDevice_->setTrigSource(0x0);
 
   hw_semaphore_.give();
