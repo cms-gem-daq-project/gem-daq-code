@@ -38,6 +38,8 @@ namespace gem {
     namespace vfat {
       class HwVFAT2;
       
+      typedef std::shared_ptr<HwVFAT2>  vfat_shared_ptr;
+
       //class VFAT2Manager: public gem::base::GEMWebApplication, public gem::base::GEMFSMApplication
       class VFAT2Manager: public xdaq::WebApplication, public xdata::ActionListener
         {
@@ -49,6 +51,9 @@ namespace gem {
             throw (xdaq::exception::Exception);
 
           ~VFAT2Manager();
+
+	  virtual xoap::MessageReference onMessage(xoap::MessageReference message)
+	    throw (xoap::exception::Exception);
 	  
           void Default(xgi::Input *in, xgi::Output *out )
             throw (xgi::exception::Exception);
@@ -77,7 +82,7 @@ namespace gem {
 	  
           void actionPerformed(xdata::Event& event);
 
-          HwVFAT2* vfatDevice;
+          vfat_shared_ptr vfatDevice;
 
           void readVFAT2Registers(VFAT2ControlParams& params);
           //void readVFAT2Registers();
