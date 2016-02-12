@@ -37,6 +37,8 @@
 
 #include "TStopwatch.h"
 
+#include "gem/readout/GEMslotContents.h"
+
 class TH1D;
 class TH1F;
 class TFile;
@@ -160,6 +162,8 @@ namespace gem {
 	  //  throw (xgi::exception::Exception);
 	  virtual void selectMultipleVFAT(xgi::Output* out)
 	    throw (xgi::exception::Exception);
+	  //	  virtual void selectTrigSource(xgi::Output* out)
+	  //	    throw (xgi::exception::Exception);
 	  virtual void scanParameters(xgi::Output* out)
 	    throw (xgi::exception::Exception)=0;
 	  virtual void showCounterLayout(xgi::Output* out)
@@ -168,8 +172,6 @@ namespace gem {
 	    throw (xgi::exception::Exception);
 	  virtual void showBufferLayout(xgi::Output* out)
 	    throw (xgi::exception::Exception);
-	  virtual void displayHistograms(xgi::Output* out)
-	    throw (xgi::exception::Exception)=0;
 	  virtual void redirect(xgi::Input* in, xgi::Output* out);
 	  
 	  //action performed callback
@@ -178,6 +180,11 @@ namespace gem {
 	  //select OH 
 	  virtual void selectOptohybridDevice(xgi::Output* out)
 	    throw (xgi::exception::Exception);
+
+	  //link data parker and scan routines
+	  void dumpRoutinesData( uint8_t const& mask, u_int8_t latency, u_int8_t VT1, u_int8_t VT2 );
+
+	  void ScanRoutines(u_int8_t latency_,u_int8_t VT1_,u_int8_t VT2_);
 
 	  class ConfigParams 
 	  {
@@ -192,23 +199,33 @@ namespace gem {
 	    xdata::UnsignedInteger nTriggers;
 
 	    xdata::String        outFileName;
+	    xdata::String        slotFileName;
+
 	    xdata::String        settingsFile;
 
 	    xdata::Vector<xdata::String>  deviceName;
 	    xdata::Vector<xdata::Integer> deviceNum;
+
 	    xdata::String        deviceIP;
 	    xdata::UnsignedShort triggerSource;
 	    xdata::UnsignedShort deviceChipID;
 	    xdata::UnsignedInteger64 triggersSeen;
+	    xdata::UnsignedInteger64 triggersSeenGLIB;
+
+	    xdata::UnsignedInteger32 triggercount;
+	    
 	    xdata::Integer       ADCVoltage;
 	    xdata::Integer       ADCurrent;
 
 	    xdata::UnsignedShort deviceVT1;
 	    xdata::UnsignedShort deviceVT2;
-	    
+	    xdata::UnsignedShort triggerSource_;
+
 	  };
 	  
 	protected:
+
+	  std::unique_ptr<gem::readout::GEMslotContents> slotInfo;
 
 	  log4cplus::Logger m_gemLogger;
 
@@ -229,6 +246,8 @@ namespace gem {
 
 	  //ConfigParams confParams_;
 	  uint8_t readout_mask;
+
+
 	  xdata::Bag<ConfigParams> confParams_;
 	  xdata::String ipAddr_;
 	  
@@ -240,24 +259,27 @@ namespace gem {
 	  bool is_working_, is_initialized_, is_configured_, is_running_;
 
 	  //readout application should be running elsewhere, not tied to supervisor                                                                           
-        glib_shared_ptr glibDevice_;
-        optohybrid_shared_ptr optohybridDevice_;
-        std::vector<vfat_shared_ptr> vfatDevice_;
+	  glib_shared_ptr glibDevice_;
+	  optohybrid_shared_ptr optohybridDevice_;
+	  std::vector<vfat_shared_ptr> vfatDevice_;
+	  std::vector<vfat_shared_ptr> VFATdeviceConnected;
 
-        std::shared_ptr<gem::readout::GEMDataParker> gemDataParker;
-
+	  
+	  std::shared_ptr<gem::readout::GEMDataParker> gemDataParker;
+	  
+	  
 	  // Counter
-	  int counter_[3];
+
 	  
 	  // VFAT Blocks Counter
 	  int vfat_;
-
+	  
 	  // Events Counter     
 	  int event_;
 	  
 	  // VFATs counter per event
 	  int sumVFAT_;
-	  
+
 	  // CalPulse counting
 	  uint32_t CalPulseCount_[3];
 	  
@@ -270,8 +292,11 @@ namespace gem {
 
 	  xdata::Bag<ConfigParams> scanParams_;
 	  uint64_t eventsSeen_,channelSeen_;
-	  uint8_t  currentLatency_;
-
+	  uint64_t triggerSource_;
+	  uint8_t  currentLatency_,deviceVT1,deviceVT2;
+	  uint32_t counter_[5];
+	  //	  int latency_m, VT1_m, VT2_m;
+	  uint32_t m_counter[5]; 
 
 	protected:
 

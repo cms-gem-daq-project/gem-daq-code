@@ -37,12 +37,6 @@ typedef gem::readout::GEMDataAMCformat::VFATData AMCVFATData;
 std::vector<AMCVFATData> vfats;
 std::vector<AMCVFATData> erros;
 
-//uint16_t gem::readout::GEMslotContents::slot[24] = {
-//  0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,
-//  0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,
-//  0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,0xfff,
-//};
-//bool gem::readout::GEMslotContents::isFileRead = false;
 
 uint32_t kUPDATE = 5000, kUPDATE7 = 7;
 int event_ = 0;
@@ -62,7 +56,7 @@ gem::readout::GEMDataParker::GEMDataParker(gem::hw::glib::HwGLIB& glibDevice,
                                            std::string const& outFileName,
                                            std::string const& errFileName,
                                            std::string const& outputType,
-                                           std::string const& slotFileName="slot_table.csv") 
+                                           std::string const& slotFileName="slot_table_904_2.csv") 
   :
   m_gemLogger(log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("gem:readout:GEMDataParker"))),
   m_queueLock(toolbox::BSem::FULL, true)
@@ -70,6 +64,7 @@ gem::readout::GEMDataParker::GEMDataParker(gem::hw::glib::HwGLIB& glibDevice,
   //  these bindings necessitate that the GEMDataParker inherit from some xdaq application stuff
   //  i2o::bind(this,&GEMDataParker::onReadoutNotify,I2O_READOUT_NOTIFY,XDAQ_ORGANIZATION_ID);
   //  xoap::bind(this,&GEMDataParker::updateScanParameters,"UpdateScanParameter","urn:GEMDataParker-soap:1");
+  INFO("Data Parker");
 
   glibDevice_   = &glibDevice;
   outFileName_  = outFileName;
@@ -81,12 +76,14 @@ gem::readout::GEMDataParker::GEMDataParker(gem::hw::glib::HwGLIB& glibDevice,
   event_ = 0;
   rvent_ = 0;
   sumVFAT_ = 0;
-  m_gemOnlineDQM = new gem::readout::gemOnlineDQM(slotFileName_);
+  //  m_gemOnlineDQM = new gem::readout::gemOnlineDQM(slotFileName_);
   slotInfo = std::unique_ptr<gem::readout::GEMslotContents>(new gem::readout::GEMslotContents(slotFileName_));
 }
 
 uint32_t* gem::readout::GEMDataParker::dumpData(uint8_t const& readout_mask)
 {
+
+  INFO("info dump data parker");
   DEBUG("Reading out dumpData(" << (int)readout_mask << ")");
   uint32_t *point = &counter_[0]; 
   contvfats_ = 0;
@@ -218,7 +215,11 @@ uint32_t* gem::readout::GEMDataParker::getGLIBData(uint8_t const& gtx, uint32_t 
 
 uint32_t* gem::readout::GEMDataParker::selectData(uint32_t Counter[5])
 {
+  for(int j = 0; j < 5; j++) {
+    INFO("GEMDataParker::selectData Counter " << j <<  " "<< Counter[j] );
+  }
   uint32_t *point = &Counter[0]; 
+  DEBUG("GEMDataParker::selectData point  " << std::hex << point );
   uint32_t* pDQ = gem::readout::GEMDataParker::GEMEventMaker(Counter);
   for (unsigned count = 0; count < 5; ++count) Counter[count] = *(pDQ+count);
   return point;
@@ -238,6 +239,7 @@ uint32_t* gem::readout::GEMDataParker::GEMEventMaker(uint32_t Counter[5])
   uint64_t msVFAT, lsVFAT;
   uint32_t ES;
 
+  DEBUG("GEMDataParker::GEMEventMaker  " << std::hex << point );
   if (dataque.empty()) return point;
   DEBUG(" ::GEMEventMaker dataque.size " << dataque.size() );
 
@@ -348,7 +350,7 @@ void gem::readout::GEMDataParker::GEMevSelector(const  uint32_t& ES)
           if(int(geb.vfats.size()) != 0) gem::readout::GEMDataParker::writeGEMevent(outFileName_, false, TypeDataFlag,
                                                                                     gem, geb, vfat);
           // update online histograms
-          m_gemOnlineDQM->Update(geb);
+	  //          m_gemOnlineDQM->Update(geb);
           geb.vfats.clear();
         }// end of writing event
       }// if slot correct
@@ -485,6 +487,7 @@ void gem::readout::GEMDataParker::writeGEMevent(std::string  outFile, bool const
 void gem::readout::GEMDataParker::GEMfillHeaders(uint32_t const& event, uint32_t const& BX,
                                                  AMCGEMData& gem, AMCGEBData& geb)
 {
+
   // GEM, All Chamber Data
   // GEM Event Headers [1]
   uint64_t AmcNo       = BOOST_BINARY( 1 );            // :4 
@@ -529,12 +532,9 @@ void gem::readout::GEMDataParker::GEMfillHeaders(uint32_t const& event, uint32_t
   FormatVer   = (0x0000000000000f00 & gem.header3) >> 8;
   MP7BordStat = (0x00000000000000ff & gem.header3);
 
-  // RunType:4, all other depends from RunType
-  uint64_t RunType = BOOST_BINARY( 1 ); // :4
-
-  //this needs to be populated with dummy values so migration can be made simply
-  //scanParam;
-  geb.runhed  = (RunType << 60);
+  // last geb header:
+ geb.runhed  = Runtype();
+ INFO("GEMfillHeadres" << geb.runhed);
 }// end GEMfillHeaders
 
 void gem::readout::GEMDataParker::GEMfillTrailers(AMCGEMData&  gem,AMCGEBData&  geb)
@@ -635,3 +635,20 @@ void gem::readout::GEMDataParker::readVFATblock(std::queue<uint32_t>& m_dataque)
     DEBUG(" ::GEMEventMaker (post pop)  dataque.size " << m_dataque.size() );
   }// end queue
 }
+
+
+
+void gem::readout::GEMDataParker::ScanRoutines(uint8_t latency_, uint8_t VT1_, uint8_t VT2_)
+//void gem::readout::GEMDataParker::ScanRoutines(uint_8 latency_, u8int_t VT1_, u8int_t VT2_)
+{
+
+  latency_m = latency_;
+  VT1_m = VT1_;
+  VT2_m = VT2_;
+
+  INFO( " Dataparker scan routines Latency = " << (int)latency_m  << " VT1 = " << (int)VT1_m << " VT2 = " << (int)VT2_m);
+
+}
+
+     
+

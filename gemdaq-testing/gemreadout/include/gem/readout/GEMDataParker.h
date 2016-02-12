@@ -36,6 +36,7 @@ namespace gem {
     public:
       static const int I2O_READOUT_NOTIFY;
       static const int I2O_READOUT_CONFIRM;
+      uint8_t latency_m, VT1_m, VT2_m;
 
       GEMDataParker        (gem::hw::glib::HwGLIB& glibDevice, 
                             std::string const& outFileName, 
@@ -43,7 +44,7 @@ namespace gem {
                             std::string const& outputType,
                             std::string const& slotFileName                            
                             );
-      ~GEMDataParker() {delete m_gemOnlineDQM;};
+      ~GEMDataParker() {};//delete m_gemOnlineDQM;};
 
       uint32_t* dumpData   ( uint8_t const& mask );
       uint32_t* selectData ( uint32_t Counter[5]
@@ -74,10 +75,26 @@ namespace gem {
                              gem::readout::GEMDataAMCformat::VFATData& vfat
                            );
       int queueDepth       () {return dataque.size();}
+      
+
+      void ScanRoutines(uint8_t latency_,uint8_t VT1_,uint8_t VT2_);
+      //      void ScanRoutines(int latency_,int VT1_,int VT2_);
+      uint64_t Runtype(){
+	uint64_t RunType = BOOST_BINARY( 1 ); // :4
+	uint64_t lat =  (0xff & latency_m); // :8
+	uint64_t vt1 =  (0xff & VT1_m); // :8
+	uint64_t vt2 =  (0xff & VT2_m); // :8
+
+	//	return ((((((RunType<<4|lat)<<8))|vt1)<<8)|vt2);
+	return (RunType << 24)|(lat << 16)|(vt1 << 8)|(vt2) ;//||(lat << 32)||(vt1<<16)||(vt2);
+      }
+
 
       // SOAP interface, updates the header used for calibration runs
       xoap::MessageReference updateScanParameters(xoap::MessageReference message)
         throw (xoap::exception::Exception);
+
+
       
     private:
 
@@ -87,6 +104,8 @@ namespace gem {
       uint16_t bcn, evn, chipid, vfatcrc;
       uint16_t b1010, b1100, b1110;
       uint8_t  flags;
+
+
       static const int MaxVFATS = 24; // was 32 ???
       static const int MaxERRS  = 4095; // should this also be 24? Or we can accomodate full GLIB FIFO of bad blocks belonging to the same event?
       
@@ -103,6 +122,9 @@ namespace gem {
       mutable gem::utils::Lock m_queueLock;
       // The main data flow
       std::queue<uint32_t> dataque;
+
+
+
       
       // Online histograms
       gemOnlineDQM* m_gemOnlineDQM;
@@ -126,6 +148,8 @@ namespace gem {
       int sumVFAT_;
       
       int16_t scanParam;
+
+
     };
   }
 }
