@@ -32,6 +32,7 @@ IncludeDirs =$(BUILD_HOME)/$(Project)/$(Package)/include
 IncludeDirs+=$(BUILD_HOME)/$(Project)/gemutils/include 
 IncludeDirs+=$(BUILD_HOME)/$(Project)/gembase/include 
 IncludeDirs+=$(BUILD_HOME)/$(Project)/gemhardware/include 
+IncludeDirs+=$(BUILD_HOME)/gem-light-dqm/dqm-root/include
 IncludeDirs+=$(XDAQ_ROOT)/include 
 IncludeDirs+=$(uHALROOT)/include 
 IncludeDirs+=$(ROOTDIR)/include 
@@ -68,7 +69,7 @@ UserStaticLinkFlags =
 
 #LDFLAGS=`root-config --libs --glibs`
 DEBUG_LIBS =profiler tcmalloc
-DependentLibraries = log4cplus config xcept boost_system cactus_uhal_uhal xerces-c gem_hw gem_utils gem_base
+DependentLibraries = log4cplus config xcept boost_system cactus_uhal_uhal xerces-c gem_hw gem_utils gem_base cactus_amc13_tools
 Libraries          = log4cplus config xcept xerces-c numa toolbox asyncresolv uuid
 
 include $(XDAQ_ROOT)/config/Makefile.rules

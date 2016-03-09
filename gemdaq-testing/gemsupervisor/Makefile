@@ -24,9 +24,10 @@ ROOTGLIBS  =$(shell root-config --glibs)
 
 Sources =version.cc
 Sources+=tbutils/VFAT2XMLParser.cc
-#Sources+=tbutils/GEMTBUtil.cc tbutils/ThresholdScan.cc tbutils/ADCScan.cc tbutils/LatencyScan.cc
+#Sources+=tbutils/GEMTBUtil.cc tbutils/ThresholdScan.cc tbutils/LatencyScan.cc tbutils/ADCScan.cc
+#Sources+=tbutils/GEMTBUtil.cc tbutils/LatencyScan.cc
 Sources+=GEMGLIBSupervisorWeb.cc
-Sources+=GEMSupervisor.cc GEMSupervisorWeb.cc
+Sources+=GEMSupervisor.cc GEMSupervisorWeb.cc GEMSupervisorMonitor.cc
 
 DynamicLibrary=gem_supervisor
 
@@ -35,8 +36,10 @@ IncludeDirs+=$(BUILD_HOME)/$(Project)/gembase/include
 IncludeDirs+=$(BUILD_HOME)/$(Project)/gemutils/include
 IncludeDirs+=$(BUILD_HOME)/$(Project)/gemhardware/include
 IncludeDirs+=$(BUILD_HOME)/$(Project)/gemreadout/include
+IncludeDirs+=$(BUILD_HOME)/gem-light-dqm/dqm-root/include
 IncludeDirs+=$(XDAQ_ROOT)/include
 IncludeDirs+=$(uHALROOT)/include
+IncludeDirs+=$(ROOTDIR)/include 
 
 #
 DependentLibraryDirs =$(XDAQ_ROOT)/lib
@@ -71,7 +74,7 @@ UserStaticLinkFlags =
 
 #LDFLAGS=`root-config --libs --glibs`
 DEBUG_LIBS =profiler tcmalloc
-DependentLibraries = log4cplus config xcept boost_system cactus_uhal_uhal xerces-c gem_hw gem_utils gem_readout
+DependentLibraries = log4cplus config xcept boost_system cactus_uhal_uhal xerces-c gem_hw gem_utils gem_readout cactus_amc13_tools
 Libraries          = log4cplus config xcept xerces-c numa toolbox asyncresolv uuid
 
 include $(XDAQ_ROOT)/config/Makefile.rules

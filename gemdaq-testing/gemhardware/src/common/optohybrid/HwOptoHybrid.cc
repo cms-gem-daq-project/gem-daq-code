@@ -39,6 +39,7 @@ gem::hw::optohybrid::HwOptoHybrid::HwOptoHybrid(std::string const& optohybridDev
   b_links({false,false,false}),
   m_controlLink(-1)  
 {
+  setAddressTableFileName("glib_address_table.xml");
   std::stringstream basenode;
   basenode << "GLIB.OptoHybrid_" << *optohybridDevice.rbegin() << ".OptoHybrid";
   setDeviceBaseNode(basenode.str());
@@ -143,13 +144,15 @@ bool gem::hw::optohybrid::HwOptoHybrid::isHwConnected()
   } else if (gem::hw::GEMHwDevice::isHwConnected()) {
     DEBUG("Checking hardware connection");
 
-    if ((this->getFirmwareDate()).rfind("15") != std::string::npos) {
+    if ((this->getFirmwareDate()).rfind("15") != std::string::npos ||
+        (this->getFirmwareDate()).rfind("16") != std::string::npos) {
       b_is_connected = true;
       INFO("OptoHybrid present(0x" << std::hex << this->getFirmware() << std::dec << ")");
       return true;
     } else {
       b_is_connected = false;
-      DEBUG("OptoHybrid not reachable (unable to find 15 in the firmware string)");
+      DEBUG("OptoHybrid not reachable (unable to find 15 or 16 in the firmware string)."
+            << " Obviously we need a better strategy to check connectivity");
       return false;
     }
   }

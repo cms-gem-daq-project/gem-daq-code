@@ -208,6 +208,7 @@ namespace gem {
            **/
 
           uint32_t getFirmware() {
+  std::cout << "oh device base node " << getDeviceBaseNode() << std::endl;
             uint32_t fwver = readReg(getDeviceBaseNode(),"STATUS.FW");
             DEBUG("OH has firmware version 0x" 
                   << std::hex << fwver << std::dec << std::endl);
@@ -441,6 +442,107 @@ namespace gem {
 
 
           /**
+           * @brief the Scan module is very different between V1/1.5 and V2
+           * One must select the mode 
+           * One must select the signal
+          typedef struct ScanSequence {
+            uint64_t l1a_seq;
+            uint64_t cal_seq;
+            uint64_t rsy_seq;
+            uint64_t bc0_seq;
+          } ScanSequence;
+          **/
+          
+          /**
+           * @brief This function controls the firmware module that runs any of the scans
+           * @param uint8_t mode can be any of
+           *  - 0 Threshold scan per VFAT
+           *  - 1 Threshold scan per channel
+           *  - 2 Latency scan per VFAT
+           *  - 3 S-curve scan per channel
+           * @param uint8_t min is the minimum value to start the scan at (depending on the mode selected)
+           *  - 0 VT1
+           *  - 1 VT1
+           *  - 2 Latency
+           *  - 3 VCal
+           * @param uint8_t max is the maximum value to start the scan at (depending on the mode selected)
+           *  - 0 VT1
+           *  - 1 VT1
+           *  - 2 Latency
+           *  - 3 VCal
+           * @param uint8_t step is the size of the step between successive points
+           * @param uint8_t chip is the VFAT to run the scan on
+           * @param uint8_t channel is the channel to run the scan on (for modes 1 and 3 only)
+           * @param bool reset says whether to reset the module or not
+          **/
+          void configureScanGenerator(uint8_t const& mode, uint8_t const& min, uint8_t const& max,
+                                      uint8_t const& step,
+                                      uint8_t const& chip, uint8_t const& channel,
+                                      bool reset) {
+            if (reset)
+              writeReg(getDeviceBaseNode(),"ScanController.THLAT.RESET",0x1);
+            
+            writeReg(getDeviceBaseNode(),"ScanController.THLAT.MODE", mode);
+            writeReg(getDeviceBaseNode(),"ScanController.THLAT.MIN",  min);
+            writeReg(getDeviceBaseNode(),"ScanController.THLAT.MAX",  max);
+            writeReg(getDeviceBaseNode(),"ScanController.THLAT.STEP", step);
+
+            // need also to enable this chip and disable all others, use a broadcast write?
+            writeReg(getDeviceBaseNode(),"ScanController.THLAT.CHIP", chip);
+            if (mode == 0x1 || mode == 0x3) {
+              // protect for non-existent channels?
+              // need also to enable this channel and disable all others
+              writeReg(getDeviceBaseNode(),"ScanController.THLAT.CHAN",channel);
+              if (mode == 0x3) {
+                // need also to enable cal pulse to this channel and disable all others
+              }
+            }
+          };
+          
+          /**
+           * @brief Start the Scan controller (must be configured first or have a configuration already loaded)
+           * @param uint32_t ntrigs number of signals to send before stopping (0 will send continuously)
+           **/
+          void startScanGenerator(uint32_t const& ntrigs) {
+            
+            writeReg(getDeviceBaseNode(),"ScanController.THLAT.NTRIGS"  ,ntrigs  );
+            
+            //don't toggle off if the generator is currently running
+            if (!statusScanGenerator())
+              writeReg(getDeviceBaseNode(),"ScanController.THLAT.START",0x1);
+          };
+          
+          /**
+           * @brief Stop the Scan generator
+           * @param bool reset tells whether to reset the state of the module
+           **/
+          void stopScanGenerator(bool reset) {
+            //don't toggle on if the generator is currently not running
+            //if (statusScanGenerator())
+            //  writeReg(getDeviceBaseNode(),"ScanController.THLAT.TOGGLE",0x1);
+            if (reset)
+              writeReg(getDeviceBaseNode(),"ScanController.THLAT.RESET",0x1);
+          };
+          
+          /**
+           * @brief Status of the Scan generator
+           * @returns uint8_t the status of the Scan generator, telling which mode is running
+           * (0 is nothing running)
+           **/
+          uint8_t statusScanGenerator() {
+            return readReg(getDeviceBaseNode(),"ScanController.THLAT.MONITOR");
+          };
+
+          /**
+           * @brief Get the results of the Scan controller
+           * @returns uint8_t the status of the Scan controller, telling which mode is running
+           * (0 is nothing running)
+           **/
+          uint32_t getScanResults() {
+            return readReg(getDeviceBaseNode(),"ScanController.THLAT.RESULTS");
+          };
+
+          /**
            * @brief the T1 module is very different between V1/1.5 and V2
            * One must select the mode 
            * One must select the signal
@@ -566,6 +668,8 @@ namespace gem {
            * @param uint32_t rate, rate at which signals will be generated
            **/
           void sendResync(uint32_t const& nresync=1,uint32_t const& rate=1) {
+            writeReg(getDeviceBaseNode(), "CONTROL.TRIGGER.SOURCE",0x0);
+            writeReg(getDeviceBaseNode(), "CONTROL.CLOCK.REF_CLK",0x1);
             T1Sequence sequence;
             configureT1Generator(0x0, 0x2, sequence, true);
             startT1Generator(nresync, rate, 0); };
@@ -657,7 +761,8 @@ namespace gem {
             }
           };
 	  
-          /** Get the recorded number of L1A signals
+          /**
+           * Get the recorded number of L1A signals
            * @param mode specifies which L1A counter to read
            * 0 from the TTC decoder on the GLIB
            * 1 from the T1 generator in the firmware
@@ -668,7 +773,8 @@ namespace gem {
           uint32_t getL1ACount(uint8_t const& mode) {
             return getT1Count(0x0, mode); };
 	  
-          /** Get the recorded number of CalPulse signals
+          /**
+           * Get the recorded number of CalPulse signals
            * @param mode specifies which CalPulse counter to read
            * 0 from the TTC decoder on the GLIB
            * 1 from the T1 generator in the firmware
@@ -679,7 +785,8 @@ namespace gem {
           uint32_t getCalPulseCount(uint8_t const& mode) {
             return getT1Count(0x1, mode); };
 	  
-          /** Get the recorded number of Resync signals
+          /**
+           * Get the recorded number of Resync signals
            * @param mode specifies which L1A counter to read
            * 0 from the TTC decoder on the GLIB
            * 1 from the T1 generator in the firmware
@@ -690,7 +797,8 @@ namespace gem {
           uint32_t getResyncCount(uint8_t const& mode=0x0) {
             return getT1Count(0x2, mode); };
 
-          /** Get the recorded number of BC0 signals
+          /**
+           * Get the recorded number of BC0 signals
            * @param mode specifies which L1A counter to read
            * 0 from the TTC decoder on the GLIB
            * 1 from the T1 generator in the firmware
@@ -701,7 +809,8 @@ namespace gem {
           uint32_t getBC0Count(uint8_t const& mode=0x0) {
             return getT1Count(0x3, mode); };
           
-          /** Get the recorded number of BXCount signals
+          /**
+           * Get the recorded number of BXCount signals
            * OBSOLETE in V2 firmware
            **/
           uint32_t getBXCountCount() {
@@ -714,7 +823,8 @@ namespace gem {
           };
 	  
           ///Resets
-          /** Get the recorded number of T1 signals
+          /**
+           * Get the recorded number of T1 signals
            * @param mode specifies which T1 counter to read
            * 0 from the TTC decoder on the GLIB
            * 1 from the T1 generator in the firmware
@@ -767,7 +877,8 @@ namespace gem {
             }
           };
 	  
-          /** Reset recorded number of L1A signals
+          /**
+           * Reset recorded number of L1A signals
            * @param mode specifies which L1A counter to reset
            * 0 from the TTC decoder on the GLIB
            * 1 from the T1 generator in the firmware
@@ -780,7 +891,8 @@ namespace gem {
             resetT1Count(0x0,mode);
           };
 	  
-          /** Reset recorded number of CalPulse signals
+          /**
+           * Reset recorded number of CalPulse signals
            * @param mode specifies which CalPulse counter to reset
            * 0 from the TTC decoder on the GLIB
            * 1 from the T1 generator in the firmware
@@ -792,7 +904,8 @@ namespace gem {
           void resetCalPulseCount(uint8_t const& mode) {
             return resetT1Count(0x1, mode); };
           
-          /** Reset recorded number of Resync signals
+          /**
+           * Reset recorded number of Resync signals
            * @param mode specifies which CalPulse counter to reset
            * 0 from the TTC decoder on the GLIB
            * 1 from the T1 generator in the firmware
@@ -804,7 +917,8 @@ namespace gem {
           void resetResyncCount(uint8_t const& mode=0x0) {
             return resetT1Count(0x2, mode); };
 
-          /** Reset recorded number of BC0 signals
+          /**
+           * Reset recorded number of BC0 signals
            * @param mode specifies which CalPulse counter to reset
            * 0 from the TTC decoder on the GLIB
            * 1 from the T1 generator in the firmware
@@ -816,26 +930,30 @@ namespace gem {
           void resetBC0Count(uint8_t const& mode=0x0) {
             return resetT1Count(0x3, mode); };
 
-          /** Reset recorded number of BXCount signals
+          /**
+           * Reset recorded number of BXCount signals
            * OBSOLETE in V2 firmawre
            **/
           void resetBXCount() { return; };
 
           //pertaining to VFATs
-          /** Returns VFATs to the 0 run mode
+          /**
+           * Returns VFATs to the 0 run mode
            * 
            */
           void resetVFATs() {
             return writeReg(getDeviceBaseNode(),toolbox::toString("CONTROL.VFAT.RESET"),0x1); };
           
-          /** Returns the VFAT tracking data mask that the OptoHybrid uses to determine which data
-           *  packets to send to the GLIB
+          /**
+           * Returns the VFAT tracking data mask that the OptoHybrid uses to determine which data
+           * packets to send to the GLIB
            * 
            */
           uint32_t getVFATMask() {
             return readReg(getDeviceBaseNode(),toolbox::toString("CONTROL.VFAT.MASK")); };
           
-          /** Sets the VFAT tracking data mask that the OptoHybrid uses to determine which data
+          /**
+           * Sets the VFAT tracking data mask that the OptoHybrid uses to determine which data
            *  packets to send to the GLIB
            *  a 0 means the VFAT will NOT be masked, and it's data packets will go to the GLIB
            *  a 1 means the VFAT WILL be masked, and it's data packets will NOT go to the GLIB
@@ -843,13 +961,15 @@ namespace gem {
           void setVFATMask(uint32_t const& mask) {
             return writeReg(getDeviceBaseNode(),toolbox::toString("CONTROL.VFAT.MASK"),mask); };
           
-          /** Sends a read request to all (un-masked) VFATs on the same register
+          /**
+           * Sends a read request to all (un-masked) VFATs on the same register
            * @param std::string name name of the register to broadcast the request to
            * @returns a std::vector of uint32_t words, one response for each VFAT
            */
           std::vector<uint32_t> broadcastRead(std::string const& name, uint32_t const& mask, bool reset=false);
           
-          /** Sends a write request to all (un-masked) VFATs on the same register
+          /**
+           * Sends a write request to all (un-masked) VFATs on the same register
            * @param std::string name name of the register to broadcast the request to
            * @param uint32_t value value to be written to all VFATs receiving the broadcast
            * @returns a std::vector of uint32_t words, one response for each VFAT
@@ -857,8 +977,9 @@ namespace gem {
           void broadcastWrite(std::string const& name, uint32_t const& mask, uint32_t const& value,
                               bool reset=false);
           
-          /** Get the number of valid/incorrect CRCs performed by the OptoHybrid
-              on the received data packets from a given VFAT
+          /**
+           * Get the number of valid/incorrect CRCs performed by the OptoHybrid
+           * on the received data packets from a given VFAT
            * @param slot specifies which VFAT counters to read
            * 0-23
            **/
@@ -872,8 +993,9 @@ namespace gem {
             return std::make_pair<uint32_t, uint32_t>(valid,incorrect);
           };
 	  
-          /** Reset the number of valid/incorrect CRCs performed by the OptoHybrid
-              on the received data packets from a given VFAT
+          /**
+           * Reset the number of valid/incorrect CRCs performed by the OptoHybrid
+           * on the received data packets from a given VFAT
            * @param slot specifies which VFAT counters to read
            * 0-23
            **/
