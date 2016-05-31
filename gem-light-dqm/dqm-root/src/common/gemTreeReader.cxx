@@ -222,8 +222,8 @@ private:
             char vslot_ch[2];   //char used to put VFAT number into directory name
             vslot_ch[0] = '\0';
             std::unique_ptr<gem::readout::GEMslotContents> slotInfo_ = std::unique_ptr<gem::readout::GEMslotContents> (new gem::readout::GEMslotContents("slot_table.csv"));     
-            int vslot = slotInfo_->GEBslotIndex(v->ChipID());  //converts Chip ID into VFAT slot number
-            sprintf(vslot_ch, "%d", vslot);
+            int vslot = v->ChipID();
+            sprintf(vslot_ch, "0x%03x", vslot);
             strcat(dirvfat,"VFAT-");
             strcat(dirvfat, vslot_ch);
             int vID = v->ChipID();
